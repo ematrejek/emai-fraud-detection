@@ -1,0 +1,38 @@
+{
+  "suspicious_keywords": [
+    "game",
+    "prank",
+    "wallpaper",
+    "android",
+    "free",
+    "live",
+    "puzzle",
+    "funny",
+    "haircut",
+    "sounds",
+    "merge",
+    "fart",
+    "airhorn",
+    "wallpapers",
+    "anime",
+    "keyboard",
+    "background",
+    "horn",
+    "sound",
+    "english"
+  ],
+  "download_threshold": 10101011,
+  "age_threshold": 4684,
+  "suspicious_domain_keywords": [
+    "bitbucket",
+    "blogspot",
+    "games",
+    "fahexports",
+    "web",
+    "tuneonn",
+    "blingfi",
+    "host",
+    "say",
+    "hello"
+  ]
+}
