@@ -34,9 +34,10 @@ class AppClassifier:
                 details = scraper.get_app_details(app_id, country='us')
                 return {'releaseDate': details.get('releaseDate'), 'developerWebsite': details.get('sellerUrl'), 'installs': None}
             else:
-                details = gp_app(app_id)
+                # *** ZMIANA: Dodano jawne określenie języka i kraju dla większej niezawodności ***
+                details = gp_app(app_id, lang='en', country='us')
                 return {'releaseDate': details.get('released'), 'developerWebsite': details.get('developerWebsite'), 'installs': details.get('installs')}
-        except Exception:
+        except Exception as e:
             print(f"  > Aplikacja nieznaleziona lub błąd pobierania danych.")
             return {}
 
@@ -78,7 +79,6 @@ class AppClassifier:
         is_not_found = not scraped_data
 
         if is_not_found:
-            # Sprawdź słowa kluczowe w ID
             app_name_words = re.findall(r'[a-z]+', str(app_id).lower())
             for word in app_name_words:
                 if any(fuzz.token_sort_ratio(word, s_word) > 90 for s_word in self.patterns.get('suspicious_keywords',[])):
@@ -92,12 +92,10 @@ class AppClassifier:
         return probability
 
 def main():
-    # Inicjalizuj klasyfikator - wczyta wytrenowany model
     live_classifier = AppClassifier()
     if not live_classifier.model:
-        return # Zakończ, jeśli model się nie załadował
+        return
     
-    # Lista aplikacji do oceny
     example_apps = [
         'com.facebook.katana',
         'com.prank.sound.fart.funny',
