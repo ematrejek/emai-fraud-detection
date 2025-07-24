@@ -354,15 +354,14 @@ def setup_git_repository():
     print("✓ Repozytorium Git skonfigurowane")
     return True
 
-def create_github_repository():
-    """Tworzy repozytorium na GitHubie"""
-    print("\n🌐 Tworzenie repozytorium na GitHubie...")
+def push_to_existing_repository():
+    """Wypycha kod do istniejącego repozytorium na GitHubie"""
+    print("\n🌐 Wypychanie kodu do istniejącego repozytorium...")
     
     # Sprawdź czy gh CLI jest zainstalowany
     if not run_command("gh --version"):
         print("❌ GitHub CLI (gh) nie jest zainstalowany.")
         print("Zainstaluj GitHub CLI: https://cli.github.com/")
-        print("Lub utwórz repozytorium ręcznie na: https://github.com/new")
         return False
     
     # Sprawdź czy użytkownik jest zalogowany
@@ -371,24 +370,32 @@ def create_github_repository():
         print("Zaloguj się: gh auth login")
         return False
     
-    # Utwórz repozytorium
-    repo_name = "EmAI-Fraud-Detection"
-    description = "Advanced mobile application classification system for detecting suspicious apps"
+    # Dodaj remote do istniejącego repozytorium
+    repo_url = "https://github.com/ematrejek/emai-fraud-detection.git"
     
-    create_command = f'gh repo create {repo_name} --public --description "{description}" --source=. --remote=origin --push'
+    # Usuń istniejący remote jeśli istnieje
+    run_command("git remote remove origin")
     
-    if run_command(create_command):
-        print(f"✓ Repozytorium utworzone: https://github.com/$(gh api user --jq .login)/{repo_name}")
+    # Dodaj nowy remote
+    if not run_command(f'git remote add origin {repo_url}'):
+        print(f"❌ Nie udało się dodać remote: {repo_url}")
+        return False
+    
+    # Wypchnij kod do repozytorium
+    if run_command("git push -u origin main"):
+        print(f"✓ Kod został pomyślnie wypchnięty do: {repo_url}")
         return True
     else:
-        print("❌ Nie udało się utworzyć repozytorium automatycznie.")
-        print("Utwórz repozytorium ręcznie na: https://github.com/new")
+        print("❌ Nie udało się wypchnąć kodu automatycznie.")
+        print("Wykonaj ręcznie:")
+        print(f"git remote add origin {repo_url}")
+        print("git push -u origin main")
         return False
 
 def main():
     """Główna funkcja skryptu"""
-    print("🚀 Skrypt wdrażania EmAI Fraud Detection na GitHub")
-    print("=" * 50)
+    print("🚀 Skrypt wdrażania EmAI Fraud Detection do istniejącego repozytorium GitHub")
+    print("=" * 60)
     
     # Sprawdź czy jesteśmy w odpowiednim katalogu
     if not os.path.exists('main.py'):
@@ -413,18 +420,18 @@ def main():
         print("❌ Nie udało się skonfigurować Git")
         return
     
-    # Utwórz repozytorium GitHub
-    if create_github_repository():
+    # Wypchnij kod do istniejącego repozytorium GitHub
+    if push_to_existing_repository():
         print("\n🎉 Projekt został pomyślnie wdrożony na GitHub!")
         print("\n📋 Następne kroki:")
-        print("1. Sprawdź repozytorium na GitHubie")
+        print("1. Sprawdź repozytorium: https://github.com/ematrejek/emai-fraud-detection")
         print("2. Skonfiguruj GitHub Pages (opcjonalnie)")
         print("3. Dodaj collaborators (opcjonalnie)")
         print("4. Skonfiguruj GitHub Actions (opcjonalnie)")
     else:
         print("\n⚠️  Projekt został przygotowany lokalnie.")
-        print("Utwórz repozytorium ręcznie na GitHubie i wykonaj:")
-        print("git remote add origin <URL_REPO>")
+        print("Wypchnij kod ręcznie:")
+        print("git remote add origin https://github.com/ematrejek/emai-fraud-detection.git")
         print("git push -u origin main")
 
 if __name__ == "__main__":
