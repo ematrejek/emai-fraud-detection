@@ -1,172 +1,133 @@
-# EmAI Fraud Detection - System Wykrywania Podejrzanych Aplikacji Mobilnych
+# EmAI Fraud Detection - Zaawansowany System Wykrywania Podejrzanych Aplikacji Mobilnych
 
 ## 📋 Przegląd Projektu
 
-Projekt EmAI Fraud Detection to zaawansowany system klasyfikacji aplikacji mobilnych, który automatycznie identyfikuje podejrzane lub niskiej jakości aplikacje. System został opracowany w odpowiedzi na problem proliferacji aplikacji generujących niskiej jakości ruch reklamowy, charakteryzujący się wysokimi wskaźnikami CTR i niskimi lub zerowymi konwersjami.
+Projekt EmAI Fraud Detection to zaawansowany system klasyfikacji aplikacji mobilnych, który automatycznie identyfikuje podejrzane lub niskiej jakości aplikacje. System wykorzystuje **zaawansowane reguły scoringu** oparte na analizie 40 słów kluczowych, progach wieku i pobrań, oraz inteligentnej obsłudze brakujących danych.
 
 ## 🎯 Cel Projektu
 
-Głównym celem jest stworzenie zautomatyzowanego narzędzia klasyfikującego, które przypisuje etykietę "suspicious" aplikacjom na podstawie zestawu predefiniowanych reguł i publicznie dostępnych danych.
+Głównym celem jest stworzenie zautomatyzowanego narzędzia klasyfikującego, które przypisuje **prawdopodobieństwo bycia suspicious** aplikacjom na podstawie zaawansowanych reguł i publicznie dostępnych danych.
 
-## 🏗️ Architektura Systemu
+## 🏗️ Nowa Architektura Systemu
 
-### Etap 1: Zbieranie Danych
-- **Plik**: `main.py`
-- **Cel**: Pobieranie metadanych aplikacji z Google Play Store i Apple App Store
+### Etap 1: Budowanie Zaawansowanych Reguł
+- **Plik**: `build_advanced_rules.py`
+- **Cel**: Tworzenie zaawansowanych reguł scoringu na podstawie analizy danych
 - **Funkcjonalność**:
-  - Automatyczne rozpoznawanie typu aplikacji (iOS/Android) na podstawie ID
-  - Scraping danych: liczba instalacji, data wydania, deweloper, domena dewelopera
-  - Obsługa błędów i aplikacji niedostępnych
+  - **40 słów kluczowych**: Ranking i ważenie słów kluczowych w nazwach aplikacji i domenach
+  - **TF-IDF Analysis**: Identyfikacja najbardziej różnicujących słów
+  - **Skalowanie prawdopodobieństw**: Najlepsze słowo = 100%, każde kolejne coraz mniej
+  - **Optymalne progi**: Automatyczne znajdowanie progów dla wieku i pobrań
 
-### Etap 2: Analiza Wzorców
-- **Plik**: `pattern_discovery_analyzer.py`
-- **Cel**: Odkrywanie wzorców charakterystycznych dla podejrzanych aplikacji
-- **Metody**:
-  - **TF-IDF Analysis**: Identyfikacja słów kluczowych w nazwach aplikacji
-  - **Domain Analysis**: Analiza domen deweloperów
-  - **Numerical Patterns**: Wykrywanie progów wieku aplikacji i liczby instalacji
-  - **Visualization**: Generowanie wykresów i raportów
-
-### Etap 3: Budowanie Modelu
-- **Plik**: `build_model.py`
-- **Cel**: Tworzenie finalnego modelu XGBoost
-- **Proces**:
-  1. Ranking 150 najlepszych słów kluczowych (TF-IDF)
-  2. Tworzenie cech na podstawie słów kluczowych
-  3. Trenowanie modelu XGBoost z balansowaniem klas
-  4. Zapisywanie modelu i wzorców
-
-### Etap 4: Ocena Modelu
-- **Plik**: `evaluation.py`
-- **Cel**: Ocena wydajności modelu dla różnych progów
-- **Metryki**:
-  - Classification Report (Precision, Recall, F1-Score)
-  - Confusion Matrix
-  - Analiza dla różnych progów prawdopodobieństwa
-
-### Etap 5: Predykcja w Czasie Rzeczywistym
-- **Plik**: `predict_app.py`
-- **Cel**: Klasyfikacja nowych aplikacji w czasie rzeczywistym
+### Etap 2: Zaawansowany Scorer
+- **Plik**: `advanced_scorer.py`
+- **Cel**: Klasyfikacja aplikacji w czasie rzeczywistym z zaawansowaną logiką
 - **Funkcjonalność**:
-  - Wczytywanie wytrenowanego modelu
-  - Scraping danych dla nowej aplikacji
-  - Tworzenie cech i predykcja
-  - Reguły biznesowe dla aplikacji niedostępnych
+  - **Inteligentny scoring**: Im więcej słów kluczowych, tym wyższe prawdopodobieństwo
+  - **Obsługa brakujących danych**: 50% prawdopodobieństwo dla brakujących informacji
+  - **Ważenie cech**: Różne wagi dla różnych typów cech
+  - **Reguły biznesowe**: Specjalne obsługa aplikacji iOS i niedostępnych danych
 
 ## 🔧 Szczegółowy Proces Tworzenia
 
-### Krok 1: Przygotowanie Danych
+### Krok 1: Budowanie Reguł (`build_advanced_rules.py`)
 ```python
-# main.py - Scraping danych z App Store i Google Play
-def scrape_app_store(app_id):
-    scraper = AppStoreScraper()
-    details = scraper.get_app_details(app_id, country='us')
-    return {
-        'releaseDate': details.get('releaseDate'),
-        'developer': details.get('sellerName'),
-        'developerWebsite': details.get('sellerUrl')
-    }
+# Analiza 40 najlepszych słów kluczowych
+scores_app_df = pd.DataFrame({
+    'word': vectorizer_app.get_feature_names_out(), 
+    'tfidf_score': tfidf_matrix_app[0].toarray().flatten()
+}).sort_values(by='tfidf_score', ascending=False).head(40)
+
+# Skalowanie do zakresu 0-1 (najlepsze słowo = 100%)
+scaler = MinMaxScaler()
+scores_app_df['probability'] = scaler.fit_transform(scores_app_df[['tfidf_score']]).flatten()
 ```
 
-### Krok 2: Odkrywanie Wzorców
+### Krok 2: Zaawansowany Scoring (`advanced_scorer.py`)
 ```python
-# pattern_discovery_analyzer.py - TF-IDF Analysis
-def discover_suspicious_keywords_tfidf(self, df):
-    vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform([suspicious_corpus, legitimate_corpus])
-    # Ranking słów kluczowych na podstawie TF-IDF scores
+class AdvancedRuleScorer:
+    def __init__(self, rules_path='advanced_rules.json'):
+        self.base_weights = {
+            'app_keyword': 0.5,    # 50% waga dla słów w nazwie
+            'domain_keyword': 0.2,  # 20% waga dla słów w domenie
+            'age': 0.15,           # 15% waga dla wieku
+            'downloads': 0.15      # 15% waga dla pobrań
+        }
 ```
 
-### Krok 3: Tworzenie Cech
+## 🚀 Zaawansowana Logika Scoringu
+
+### 1. Słowa Kluczowe z Ważeniem
+- **40 słów kluczowych**: Najbardziej różnicujące słowa między suspicious a legitimate
+- **Skalowanie prawdopodobieństw**: 
+  - Najlepsze słowo = 100% prawdopodobieństwo
+  - Każde kolejne słowo = coraz mniejsze prawdopodobieństwo
+  - Im więcej słów kluczowych, tym wyższe prawdopodobieństwo (średnia arytmetyczna)
+
+### 2. Inteligentne Progi Numeryczne
+- **Wiek aplikacji**: Im dalej od progu, tym wyższe prawdopodobieństwo
+- **Liczba pobrań**: Im mniej pobrań od progu, tym wyższe prawdopodobieństwo
+- **Wartości powyżej progu**: Zerowe prawdopodobieństwo
+
+### 3. Obsługa Brakujących Danych
+- **Reguła 50%**: Jeśli brakuje informacji, przypisuje 50% prawdopodobieństwo
+- **Aplikacje iOS**: Sprawdza nazwę aplikacji dla słów kluczowych
+- **Brak jakichkolwiek danych**: 50% dla każdej cechy
+
+### 4. Ważenie Cech
 ```python
-# build_model.py - Feature Engineering
-def create_features_for_training(df, app_keywords, domain_keywords):
-    features = pd.DataFrame(index=df.index)
-    for keyword in app_keywords:
-        features[f'kw_{keyword}'] = df['app_id'].apply(
-            lambda x: 1 if fuzz.partial_ratio(keyword, str(x)) > 90 else 0
-        )
-    features['age_days'] = df['age_days']
-    features['installs_numeric'] = df['installs_numeric']
+base_weights = {
+    'app_keyword': 0.5,    # Słowa w nazwie aplikacji
+    'domain_keyword': 0.2,  # Słowa w domenie dewelopera
+    'age': 0.15,           # Wiek aplikacji
+    'downloads': 0.15      # Liczba pobrań
+}
 ```
 
-### Krok 4: Trenowanie Modelu
+## 📊 Przykład Działania
+
+### Przykład 1: Aplikacja z wieloma słowami kluczowymi
 ```python
-# build_model.py - Model Training
-model = xgb.XGBClassifier(
-    use_label_encoder=False, 
-    eval_metric='logloss', 
-    scale_pos_weight=scale_pos_weight
-)
-model.fit(X, y)
+app_id = "com.prank.sound.fart.funny"
+# Słowa kluczowe: "prank" (100%), "fart" (85%), "funny" (70%)
+# Średnia: (100% + 85% + 70%) / 3 = 85%
+# Finalne prawdopodobieństwo: 85% * 0.5 = 42.5%
 ```
 
-## 🚀 Algorytm Predykcji (predict_app.py)
-
-### Klasa AppClassifier
+### Przykład 2: Aplikacja z brakiem danych
 ```python
-class AppClassifier:
-    def __init__(self, model_path='xgb_model.joblib', patterns_path='patterns_for_model.json'):
-        self.model = joblib.load(model_path)
-        with open(patterns_path, 'r') as f:
-            self.patterns = json.load(f)
+app_id = "123456789"  # iOS app bez danych
+# Wszystkie cechy: 50% prawdopodobieństwo
+# Finalne prawdopodobieństwo: 50% * (0.5 + 0.2 + 0.15 + 0.15) = 50%
 ```
-
-### Proces Predykcji
-1. **Scraping Danych**: Pobieranie metadanych aplikacji
-2. **Przygotowanie Cech**: Konwersja surowych danych na cechy
-3. **Predykcja**: Użycie modelu XGBoost do klasyfikacji
-4. **Reguły Biznesowe**: Dodatkowe sprawdzenia dla aplikacji niedostępnych
-
-### Przykład Użycia
-```python
-classifier = AppClassifier()
-probability = classifier.predict_suspicion('com.example.app')
-print(f"Prawdopodobieństwo bycia suspicious: {probability:.2%}")
-```
-
-## 📊 Metryki Wydajności
-
-### Kluczowe Wskaźniki
-- **Precision**: Dokładność pozytywnych predykcji
-- **Recall**: Pokrycie wszystkich rzeczywistych przypadków suspicious
-- **F1-Score**: Harmoniczna średnia precision i recall
-- **ROC-AUC**: Obszar pod krzywą ROC
-
-### Optymalne Progi
-- **0.4-0.5**: Balans między precision a recall
-- **0.7-0.8**: Wysoka precision, niższy recall
-- **0.25-0.3**: Wysoki recall, niższa precision
 
 ## 🛠️ Wymagania Techniczne
 
 ### Zależności
 ```
-pandas
-numpy
-xgboost
-scikit-learn
-google-play-scraper
-itunes-app-scraper-dmi
-thefuzz
-matplotlib
-seaborn
-joblib
+pandas>=1.5.0
+numpy>=1.21.0
+scikit-learn>=1.1.0
+google-play-scraper>=1.2.0
+itunes-app-scraper-dmi>=0.9.6
+thefuzz>=0.19.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
 ```
 
 ### Struktura Plików
 ```
 EmAI/
-├── main.py                          # Scraping danych
-├── pattern_discovery_analyzer.py    # Analiza wzorców
-├── build_model.py                   # Budowanie modelu
-├── evaluation.py                    # Ocena modelu
-├── predict_app.py                   # Predykcja w czasie rzeczywistym
-├── xgb_model.joblib                # Wytrenowany model
-├── patterns_for_model.json         # Wzorce słów kluczowych
-├── training_dataset.csv            # Zbiór treningowy
-├── enriched_app_dataset.csv        # Wzbogacone dane
-└── scored_app_dataset.csv          # Oznaczone dane
+├── build_advanced_rules.py      # Budowanie reguł
+├── advanced_scorer.py           # Zaawansowany scorer
+├── main.py                      # Scraping danych
+├── pattern_discovery_analyzer.py # Analiza wzorców
+├── evaluation.py                # Ocena modelu
+├── advanced_rules.json          # Wygenerowane reguły
+├── README.md                    # Dokumentacja
+├── requirements.txt             # Zależności
+├── deploy.sh                    # Skrypt instalacji (Linux/Mac)
+└── deploy.bat                   # Skrypt instalacji (Windows)
 ```
 
 ## 🔄 Workflow Użycia
@@ -176,24 +137,19 @@ EmAI/
 python main.py
 ```
 
-### 2. Analiza Wzorców
+### 2. Budowanie Zaawansowanych Reguł
 ```bash
-python pattern_discovery_analyzer.py
+python build_advanced_rules.py
 ```
 
-### 3. Budowanie Modelu
+### 3. Predykcja z Zaawansowanym Scorerem
 ```bash
-python build_model.py
+python advanced_scorer.py
 ```
 
 ### 4. Ocena Modelu
 ```bash
 python evaluation.py
-```
-
-### 5. Predykcja
-```bash
-python predict_app.py
 ```
 
 ## 🎯 Zastosowania
@@ -209,19 +165,22 @@ python predict_app.py
 - **Batch Processing**: Przetwarzanie dużych zbiorów aplikacji
 - **Real-time Scoring**: Natychmiastowa klasyfikacja nowych aplikacji
 
-## 📈 Wyniki i Wnioski
+## 📈 Kluczowe Innowacje
 
-### Kluczowe Odkrycia
-1. **Słowa Kluczowe**: Podejrzane aplikacje często zawierają słowa jak "prank", "wallpaper", "fart"
-2. **Wiek Aplikacji**: Nowe aplikacje (<30 dni) są bardziej podejrzane
-3. **Liczba Instalacji**: Aplikacje z małą liczbą instalacji są ryzykowne
-4. **Domeny Deweloperów**: Niektóre domeny są powiązane z podejrzanymi aplikacjami
+### 1. Zaawansowane Ważenie Słów Kluczowych
+- **40 słów kluczowych** zamiast prostego binarnego dopasowania
+- **Skalowanie TF-IDF** do prawdopodobieństw
+- **Średnia arytmetyczna** dla wielu słów kluczowych
 
-### Wydajność Modelu
-- **Accuracy**: ~85-90%
-- **Precision**: ~80-85%
-- **Recall**: ~75-80%
-- **F1-Score**: ~77-82%
+### 2. Inteligentna Obsługa Brakujących Danych
+- **Reguła 50%** dla brakujących informacji
+- **Specjalna obsługa aplikacji iOS**
+- **Ważenie cech** zamiast prostego sumowania
+
+### 3. Dynamiczne Progi
+- **Automatyczne znajdowanie** optymalnych progów
+- **Skalowanie odległości** od progów
+- **Zerowe prawdopodobieństwo** powyżej progów
 
 ## 🔮 Rozwój Przyszłości
 
@@ -238,6 +197,6 @@ Projekt opracowany przez Emę. Wszystkie prawa zastrzeżone.
 
 ---
 
-**Wersja**: 1.0  
+**Wersja**: 2.0 (Zaawansowane Reguły)  
 **Data**: 24.07.2025  
 **Autor**: Emilia Matrejek
