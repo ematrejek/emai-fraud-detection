@@ -2,58 +2,77 @@
 
 ## 📋 Przegląd Projektu
 
-Projekt EmAI Fraud Detection to zaawansowany system klasyfikacji aplikacji mobilnych, który automatycznie identyfikuje podejrzane lub niskiej jakości aplikacje. System wykorzystuje **zaawansowane reguły scoringu** oparte na analizie 40 słów kluczowych, progach wieku i pobrań, oraz inteligentnej obsłudze brakujących danych.
+Projekt EmAI Fraud Detection to zaawansowany system klasyfikacji aplikacji mobilnych, który automatycznie identyfikuje podejrzane lub niskiej jakości aplikacje. System wykorzystuje **zaawansowane reguły scoringu** oparte na analizie słów kluczowych, progach wieku i pobrań, oraz inteligentnej obsłudze brakujących danych.
 
 ## 🎯 Cel Projektu
 
 Głównym celem jest stworzenie zautomatyzowanego narzędzia klasyfikującego, które przypisuje **prawdopodobieństwo bycia suspicious** aplikacjom na podstawie zaawansowanych reguł i publicznie dostępnych danych.
 
-## 🏗️ Nowa Architektura Systemu
+## 🏗️ Architektura Systemu
 
-### Etap 1: Budowanie Zaawansowanych Reguł
-- **Plik**: `build_advanced_rules.py`
+System składa się z **4 głównych modułów**, które tworzą kompletny pipeline przetwarzania danych:
+
+### 1. Wzbogacanie Danych (`enrich_data.py`)
+- **Cel**: Pobieranie i wzbogacanie danych o aplikacjach z Google Play i App Store
+- **Funkcjonalność**:
+  - Scraping danych z obu sklepów aplikacji
+  - Obliczanie wieku aplikacji w dniach
+  - Konwersja liczby pobrań na wartości numeryczne
+  - Łączenie z oryginalnymi danymi treningowymi
+
+### 2. Budowanie Reguł (`build_rules.py`)
 - **Cel**: Tworzenie zaawansowanych reguł scoringu na podstawie analizy danych
 - **Funkcjonalność**:
-  - **40 słów kluczowych**: Ranking i ważenie słów kluczowych w nazwach aplikacji i domenach
-  - **TF-IDF Analysis**: Identyfikacja najbardziej różnicujących słów
-  - **Skalowanie prawdopodobieństw**: Najlepsze słowo = 100%, każde kolejne coraz mniej
+  - **Analiza TF-IDF**: Identyfikacja najbardziej różnicujących słów kluczowych
+  - **40 słów kluczowych**: Ranking i ważenie słów w nazwach aplikacji i domenach
   - **Optymalne progi**: Automatyczne znajdowanie progów dla wieku i pobrań
+  - **Skalowanie prawdopodobieństw**: Najlepsze słowo = 100%, każde kolejne coraz mniej
 
-### Etap 2: Zaawansowany Scorer
-- **Plik**: `advanced_scorer.py`
+### 3. Audyt Próbki (`audit_sample.py`)
 - **Cel**: Klasyfikacja aplikacji w czasie rzeczywistym z zaawansowaną logiką
 - **Funkcjonalność**:
   - **Inteligentny scoring**: Im więcej słów kluczowych, tym wyższe prawdopodobieństwo
   - **Obsługa brakujących danych**: 50% prawdopodobieństwo dla brakujących informacji
   - **Ważenie cech**: Różne wagi dla różnych typów cech
-  - **Reguły biznesowe**: Specjalne obsługa aplikacji iOS i niedostępnych danych
+  - **Reguły biznesowe**: Specjalna obsługa aplikacji iOS i niedostępnych danych
 
-## 🔧 Szczegółowy Proces Tworzenia
+### 4. Analiza Wpływu Progów (`analyze_threshold_impact.py`)
+- **Cel**: Analiza wpływu różnych progów filtrowania na metryki biznesowe
+- **Funkcjonalność**:
+  - **Analiza CTR**: Obliczanie wpływu na Click-Through Rate
+  - **Metryki biznesowe**: Analiza spend, konwersji, impressions
+  - **Optymalizacja progów**: Znajdowanie optymalnego balansu między filtrowaniem a wydajnością
+  - **Raportowanie**: Szczegółowe raporty dla różnych progów
 
-### Krok 1: Budowanie Reguł (`build_advanced_rules.py`)
-```python
-# Analiza 40 najlepszych słów kluczowych
-scores_app_df = pd.DataFrame({
-    'word': vectorizer_app.get_feature_names_out(), 
-    'tfidf_score': tfidf_matrix_app[0].toarray().flatten()
-}).sort_values(by='tfidf_score', ascending=False).head(40)
+## 🔧 Szczegółowy Proces Użycia
 
-# Skalowanie do zakresu 0-1 (najlepsze słowo = 100%)
-scaler = MinMaxScaler()
-scores_app_df['probability'] = scaler.fit_transform(scores_app_df[['tfidf_score']]).flatten()
+### Krok 1: Wzbogacanie Danych
+```bash
+python enrich_data.py
 ```
+**Wymagania**: Plik `training_dataset.csv` z kolumnami `app_id` i `label`
+**Wynik**: Plik `enriched_dataset.csv` z dodatkowymi kolumnami
 
-### Krok 2: Zaawansowany Scoring (`advanced_scorer.py`)
-```python
-class AdvancedRuleScorer:
-    def __init__(self, rules_path='advanced_rules.json'):
-        self.base_weights = {
-            'app_keyword': 0.5,    # 50% waga dla słów w nazwie
-            'domain_keyword': 0.2,  # 20% waga dla słów w domenie
-            'age': 0.15,           # 15% waga dla wieku
-            'downloads': 0.15      # 15% waga dla pobrań
-        }
+### Krok 2: Budowanie Reguł
+```bash
+python build_rules.py
 ```
+**Wymagania**: Plik `enriched_dataset.csv` z wzbogaconymi danymi
+**Wynik**: Plik `advanced_rules.json` z regułami scoringu
+
+### Krok 3: Audyt Próbki
+```bash
+python audit_sample.py
+```
+**Wymagania**: Plik `53755.csv` z kolumną `app_id` i reguły z poprzedniego kroku
+**Wynik**: Plik `audit_results-53755.csv` z wynikami klasyfikacji
+
+### Krok 4: Analiza Wpływu
+```bash
+python analyze_threshold_impact.py
+```
+**Wymagania**: Wyniki audytu i dane o wydajności
+**Wynik**: Szczegółowa analiza wpływu różnych progów na metryki biznesowe
 
 ## 🚀 Zaawansowana Logika Scoringu
 
@@ -91,7 +110,10 @@ base_weights = {
 app_id = "com.prank.sound.fart.funny"
 # Słowa kluczowe: "prank" (100%), "fart" (85%), "funny" (70%)
 # Średnia: (100% + 85% + 70%) / 3 = 85%
-# Finalne prawdopodobieństwo: 85% * 0.5 = 42.5%
+# Domena dewelopera: brakujące dane, prawdopodobieństwo 50%
+# liczba pobrań: brakujące dane, prawdopodobieństwo 50%
+# wiek: brakujące dane, prawdopodobieństwo 50%
+# Finalne prawdopodobieństwo: 85% * 0.5 + 50% * 0.2 + 50% * 0.15 + 50% * 0.15 = 67.5%
 ```
 
 ### Przykład 2: Aplikacja z brakiem danych
@@ -113,43 +135,61 @@ itunes-app-scraper-dmi>=0.9.6
 thefuzz>=0.19.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
+tqdm>=4.64.0
 ```
 
 ### Struktura Plików
 ```
 EmAI/
-├── build_advanced_rules.py      # Budowanie reguł
-├── advanced_scorer.py           # Zaawansowany scorer
-├── main.py                      # Scraping danych
-├── pattern_discovery_analyzer.py # Analiza wzorców
-├── evaluation.py                # Ocena modelu
-├── advanced_rules.json          # Wygenerowane reguły
-├── README.md                    # Dokumentacja
-├── requirements.txt             # Zależności
-├── deploy.sh                    # Skrypt instalacji (Linux/Mac)
-└── deploy.bat                   # Skrypt instalacji (Windows)
+├── enrich_data.py                    # Wzbogacanie danych
+├── build_rules.py                    # Budowanie reguł
+├── audit_sample.py                   # Audyt próbki
+├── analyze_threshold_impact.py       # Analiza wpływu progów
+├── advanced_rules.json               # Wygenerowane reguły
+├── enriched_dataset.csv              # Wzbogacone dane
+├── audit_results-53755.csv           # Wyniki audytu
+├── training_dataset.csv              # Dane treningowe
+├── 53755.csv                         # Próbka do audytu
+├── README.md                         # Dokumentacja
+├── requirements.txt                  # Zależności
+└── venv/                            # Środowisko wirtualne
 ```
 
 ## 🔄 Workflow Użycia
 
-### 1. Przygotowanie Danych
+### 1. Przygotowanie Środowiska
 ```bash
-python main.py
+# Utwórz środowisko wirtualne
+python -m venv venv
+
+# Aktywuj środowisko
+# Windows:
+venv\Scripts\activate
+# Linux/Mac:
+source venv/bin/activate
+
+# Zainstaluj zależności
+pip install -r requirements.txt
 ```
 
-### 2. Budowanie Zaawansowanych Reguł
+### 2. Wzbogacanie Danych Treningowych
 ```bash
-python build_advanced_rules.py
+python enrich_data.py
 ```
 
-### 3. Predykcja z Zaawansowanym Scorerem
+### 3. Budowanie Reguł Scoringu
 ```bash
-python advanced_scorer.py
+python build_rules.py
 ```
 
-### 4. Ocena Modelu
+### 4. Audyt Nowej Próbki
 ```bash
-python evaluation.py
+python audit_sample.py
+```
+
+### 5. Analiza Wpływu na Metryki Biznesowe
+```bash
+python analyze_threshold_impact.py
 ```
 
 ## 🎯 Zastosowania
@@ -159,6 +199,7 @@ python evaluation.py
 2. **Kontrola Jakości**: Weryfikacja nowych aplikacji przed zatwierdzeniem
 3. **Analiza Trendów**: Identyfikacja wzorców w podejrzanych aplikacjach
 4. **Optymalizacja Kampanii**: Unikanie niskiej jakości ruchu reklamowego
+5. **Analiza ROI**: Ocena wpływu filtrowania na metryki kampanii
 
 ### Integracja
 - **API Endpoint**: Możliwość integracji z systemami reklamowymi
@@ -182,6 +223,11 @@ python evaluation.py
 - **Skalowanie odległości** od progów
 - **Zerowe prawdopodobieństwo** powyżej progów
 
+### 4. Analiza Wpływu Biznesowego
+- **Metryki CTR** i konwersji
+- **Optymalizacja progów** dla maksymalnego ROI
+- **Szczegółowe raportowanie** dla różnych scenariuszy
+
 ## 🔮 Rozwój Przyszłości
 
 ### Planowane Ulepszenia
@@ -190,6 +236,8 @@ python evaluation.py
 3. **Real-time Learning**: Adaptacyjne uczenie się nowych wzorców
 4. **Dashboard**: Interfejs webowy do monitorowania
 5. **Alerty**: System powiadomień o nowych zagrożeniach
+6. **A/B Testing**: Automatyczne testowanie różnych progów
+7. **Inegracja z modelem LLM**: podłączenie np. specjalnie fine-tuningowanego gpt-4o-mini
 
 ## 📝 Licencja
 
@@ -197,6 +245,6 @@ Projekt opracowany przez Emę. Wszystkie prawa zastrzeżone.
 
 ---
 
-**Wersja**: 2.0 (Zaawansowane Reguły)  
-**Data**: 24.07.2025  
-**Autor**: Emilia Matrejek
+**Wersja**: 3.0 (4-Modułowa Architektura)  
+**Data**: 6.08.2025  
+**Autor**: Ema
